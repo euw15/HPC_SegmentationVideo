@@ -2,7 +2,7 @@ CC=g++
 CFLAGS=-I/usr/local/include/opencv -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP
 LDFLAGS=-L/usr/local/lib -fopenmp
 STATICLIBS=-Wl,-Bstatic
-DYNLIBS=-lopencv_core -lopencv_imgcodecs -lopencv_highgui -lopencv_imgproc
+DYNLIBS=-lopencv_core -lopencv_imgcodecs -lopencv_highgui -lopencv_imgproc -lopencv_videoio
 
 
 videoLinker: src/SegmentVideo.o
