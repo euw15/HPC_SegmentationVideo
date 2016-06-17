@@ -6,6 +6,9 @@
 #include <string>
 #include <omp.h>
 #include "timer.h"
+#include "GraphUtils.h"
+
+
 
 using namespace cv;
 using namespace std;
@@ -69,7 +72,7 @@ int main(int argc, char **argv) {
 	int channels[] = { 0, 1 };
 
 
-	double *batchart = new double[cantFrames - 1];
+	float *batchart = new float[cantFrames - 1];
     // starting timer
 	timerStart();
 	for (int i = 0; i < cantFrames-1; i++) {
@@ -98,11 +101,31 @@ int main(int argc, char **argv) {
 				ranges, true, false);
 		normalize(hist_picture2, hist_picture2, 0, 1, NORM_MINMAX, -1, Mat());
 
-		double base = compareHist(hist_picture1, hist_picture2, 3);
+		float base = compareHist(hist_picture1, hist_picture2, 3);
 
 		batchart[i] = base;
 
 	}
+	
+	
+	
+
+
+	IplImage *a=showFloatGraph("Graph", batchart, cantFrames );
+	Mat m = cvarrToMat(a);
+	imwrite("Graph.jpg", m);
+	namedWindow("Graph", CV_WINDOW_AUTOSIZE);
+	imshow("Graph", m);
+	waitKey(0);
+	
+
+
+
+
+
+
+
+
 	// stopping timer
 	elapsedTime = timerStop();
 
@@ -113,7 +136,9 @@ int main(int argc, char **argv) {
 		double base = batchart[i];
 		printf(" Foto %d con %d : %f \n", i, i + 1, base);
 	}*/
-	double promedio = batchart[0];
+
+	float promedio = batchart[0];
+
 	for (int i = 1; i < cantFrames-1; ++i) {
 		double base = batchart[i];
 		//newj = newj >= 0 ? newj : 0;

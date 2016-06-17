@@ -5,11 +5,11 @@ STATICLIBS=-Wl,-Bstatic
 DYNLIBS=-lopencv_core -lopencv_imgcodecs -lopencv_highgui -lopencv_imgproc -lopencv_videoio
 
 
-videoLinker: src/SegmentVideo.o
-	g++ $(LDFLAGS) -o "SegmentVideo" ./src/SegmentVideo.o $(DYNLIBS)
+videoLinker: 
+	g++ -L/usr/local/lib -o TemporalSegmentation  src/GraphUtils.o src/TemporalSegmentation.o -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -lopencv_videoio -lopencv_core
 
 videoObject: src/SegmentVideo.cpp
-	g++  $(CFLAGS)  -MT"src/SegmentVideo.o" -o "src/SegmentVideo.o" "src/SegmentVideo.cpp"
+	g++ -I/usr/local/include/opencv -O0 -g3 -Wall -c -o src/TemporalSegmentation.o src/SegmentVideo.cpp
 
 clean:
 	rm -f SegmentVideo *.o
