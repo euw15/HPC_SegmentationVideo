@@ -1,14 +1,11 @@
 #include <opencv2/opencv.hpp>
 #include <opencv/highgui.h>
-
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
 #include <omp.h>
 #include "timer.h"
-#include "GraphUtils.h"
-
-
 
 using namespace cv;
 using namespace std;
@@ -19,6 +16,11 @@ string ToString(T val) {
 	stream << val;
 	return stream.str();
 }
+
+typedef struct MyImage {
+   int w;
+   int h;
+} image;
 
 int main(int argc, char **argv) {
 
@@ -33,12 +35,35 @@ int main(int argc, char **argv) {
 		std::cerr << "ERROR: Could not open video " << argv[1] << std::endl;
 		return 1;
 	}
+	
+	int myRank;									// Rank of process
+	int p =4;										// Number of processes
+	MPI_Status status;							// Return status for receive
+
+	// initializing MPI structures and checking p is odd
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+	MPI_Comm_size(MPI_COMM_WORLD, &p);
+	
+	//Crea la estructura 
+	int blocksCount = 2;
+	int blocksLength[2] = {1, 1};
+
+	MPI_Datatype types[2] = {MPI_INT, MPI_INT};
+	MPI_Aint offsets[2];
+	MPI_Datatype custom_type;
+	offsets[0] = offsetof(image, w);
+	offsets[1] = offsetof(image, h);
+
+	MPI_Type_create_struct(blocksCount, blocksLength, offsets, types, &custom_type);
+	MPI_Type_commit(&custom_type);
+	
 
 	int frame_count = 0;
 	bool should_stop = false;
 
 	int cantFrames = 0;
-
+	
 	while (!should_stop) {
 
 		Mat frame;
@@ -72,9 +97,46 @@ int main(int argc, char **argv) {
 	int channels[] = { 0, 1 };
 
 
-	float *batchart = new float[cantFrames - 1];
+	double *batchart = new double[cantFrames - 1];
     // starting timer
 	timerStart();
+	
+	//*envia las imagenes
+	if(myRank==0){
+		for (int i = 0; i < cantFrames-1; i++) {
+			//carga la imagen que va a enviar
+			Mat src_images = imread("Images/" + ToString(i) + ".jpg",
+					CV_LOAD_IMAGE_COLOR);
+			
+			image send;
+			send.w = src_images.size().width;
+			send.h = src_images.size().height;
+			// Send image dimensions
+			MPI_Send(&send, 1, custom_type, 1, 0, MPI_COMM_WORLD);
+			// Send image data
+			MPI_Send(src_images.data, send.w*send.h, MPI_UNSIGNED_CHAR, p%i, 0, MPI_COMM_WORLD);
+		}
+	}
+	//Recive las imagenes
+	else{
+		Mat image_array[(cantFrames-1)/p];      // array of 10 images
+		
+		for (int i = 0; i < (cantFrames-1)/p; i++) {
+			image recv;
+			MPI_Status status;
+			// Receive image dimensions
+			MPI_Recv(&recv, 1, custom_type, 0, 0, MPI_COMM_WORLD, &status);
+			// Allocate image matrix
+			Mat mat(Size(recv.w, recv.h), CV_8UC3);
+			// Receive image data
+			MPI_Recv(mat.data, recv.w*recv.h, MPI_UNSIGNED_CHAR, 0, 0, MPI_COMM_WORLD, &status);
+			
+			image_array[i]= mat;
+		}
+		
+	}
+	
+/*
 	for (int i = 0; i < cantFrames-1; i++) {
 
 		Mat src_picture1, hsv_picture1;
@@ -101,44 +163,23 @@ int main(int argc, char **argv) {
 				ranges, true, false);
 		normalize(hist_picture2, hist_picture2, 0, 1, NORM_MINMAX, -1, Mat());
 
-		float base = compareHist(hist_picture1, hist_picture2, 3);
+		double base = compareHist(hist_picture1, hist_picture2, 3);
 
 		batchart[i] = base;
 
-	}
+	}*/
 	
-	
-	
-
-
-	IplImage *a=showFloatGraph("Graph", batchart, cantFrames );
-	Mat m = cvarrToMat(a);
-	imwrite("Graph.jpg", m);
-	namedWindow("Graph", CV_WINDOW_AUTOSIZE);
-	imshow("Graph", m);
-	waitKey(0);
-	
-
-
-
-
-
-
-
-
 	// stopping timer
-	elapsedTime = timerStop();
+	//elapsedTime = timerStop();
 
-	cout << elapsedTime << "\n";
+	//cout << elapsedTime << "\n";
 
 	//Imprime el arreglo final
 	/*for (int i = 0; i < cantFrames - 1; ++i) {
 		double base = batchart[i];
 		printf(" Foto %d con %d : %f \n", i, i + 1, base);
 	}*/
-
-	float promedio = batchart[0];
-
+	/*double promedio = batchart[0];
 	for (int i = 1; i < cantFrames-1; ++i) {
 		double base = batchart[i];
 		//newj = newj >= 0 ? newj : 0;
@@ -150,8 +191,8 @@ int main(int argc, char **argv) {
 
 
 	}
-	
-	printf("Termine \n");
+	*/
+	//printf("Termine \n");
 
 	return 0;
 }
